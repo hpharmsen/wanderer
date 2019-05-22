@@ -3,14 +3,19 @@ from functools import partial
 import pygame
 from queue import Queue
 
-from gridworld.grid import Grid, draw_character_cell, TOP, log  # pip3 install git+https://github.com/hpharmsen/gridworld
+from gridworld.grid import (
+    Grid,
+    draw_character_cell,
+    TOP,
+    log,
+)  # pip3 install git+https://github.com/hpharmsen/gridworld
 
 # https://csijh.github.io/wanderer/javascript/index.html
 
 # TODO:
-# - Split into Gridworld and Wanderer projects
-# - All on GitHub
-# - Dead by arrows en boulders
+# √ Split into Gridworld and Wanderer projects
+# √ All on GitHub
+# √ Dead by arrows en boulders
 # - Persistent statusbar
 # - Message by kill
 # - Level chooser
@@ -50,12 +55,13 @@ teleport = 'T'
 teleport_destination = 'A'
 bomb = '!'
 
+speed_list = []  # List of objects with speed (i.e. lethal objects)
 
 class Hero:
-
     def __init__(self, grid):
         self.grid = grid
         self.stars_to_go = 0
+        self.dead = False
         for y in range(grid.height):
             for x in range(grid.width):
                 if grid[x, y] == hero_sign:
@@ -68,12 +74,17 @@ class Hero:
 
     def move(self, movement):
 
+        global speed_list
+
+        if self.dead:
+            return # No moving by dead hero's
+
         dx, dy = movement
         target = self.grid[self.x + dx, self.y + dy]
 
         def abs_move(x, y):
-            fill_queue(self.x,self.y)
-            fill_queue(x,y)
+            fill_queue(self.x, self.y)
+            fill_queue(x, y)
             grid[self.x, self.y] = ' '
             self.x = x
             self.y = y
@@ -90,14 +101,14 @@ class Hero:
         elif target == star:
             rel_move(dx, dy)
             self.stars_to_go -= 1
-            sx,sy,sw,sh = grid.get_statusbar_dimensions()
+            sx, sy, sw, sh = grid.get_statusbar_dimensions()
             grid.clear_statusbar(DARKGRAY)
             text = f'{self.stars_to_go} bags to go'
             font = pygame.font.Font(grid.itemfont, 30)
             rendered = font.render(text, True, WHITE)
-            #text_rect = text.get_rect()
-            #text_rect.center = (x + w * pos[0] // 100, y + h * pos[1] // 100)
-            grid.screen.blit(rendered, (sx,sy))
+            # text_rect = text.get_rect()
+            # text_rect.center = (x + w * pos[0] // 100, y + h * pos[1] // 100)
+            grid.screen.blit(rendered, (sx, sy))
 
         # boulder of balloon en opzij en niks achter bolder/balloon -> move bolder/balloon en zelf
         elif target == boulder and dy == 0:
@@ -124,38 +135,58 @@ class Hero:
 
         # bom -> dood
         elif target == bomb:
-            sys.exit()
+            self.die('Hit by bomb')
 
+        speed_list = []
+
+    def die(self, message):
+        self.grid.screen.fill(RED)
+        pygame.display.flip()
+        self.dead = True
 
 direction_map = {pygame.K_LEFT: (-1, 0), pygame.K_RIGHT: (1, 0), pygame.K_UP: (0, -1), pygame.K_DOWN: (0, 1)}
+
+
 def key_action(grid, key):
     global direction_map, current_level
-    log( 'key_action', key)
+    log('key_action', key)
     if key == pygame.K_q:
         sys.exit()
-    elif key==pygame.K_r:
+    elif key == pygame.K_r:
         start_level(grid, current_level)
     move = direction_map.get(key)
     if move:
         hero.move(move)
     log('hero moved')
 
-def fill_queue(x,y):
+
+def fill_queue(x, y):
     # Check for items that might move
-    for dx in range(-1,2):
-        for dy in range(-1,2):
-            if grid[x+dx,y+dy] != empty:
-                action_queue.put( (x+dx,y+dy) )
+    for dx in range(-1, 2):
+        for dy in range(-1, 2):
+            if grid[x + dx, y + dy] != empty:
+                action_queue.put((x + dx, y + dy))
+
 
 def process_queue(grid):
     global action_queue
 
-    def try_move(x,y,dx,dy):
-        if grid[x + dx, y + dy] == empty:
+    def try_move(x, y, dx, dy):
+        global speed_list
+
+        source = grid[x, y]
+        target = grid[x + dx, y + dy]
+
+        if (x,y) in speed_list and  target=='@':
+            # Uh, oh. speeding object hits the hero.
+            hero.die(f'Hit by {source}')
+
+        if target == empty:
             grid[x + dx, y + dy] = grid[x, y]
             grid[x, y] = empty
             fill_queue(x, y)
-            fill_queue(x+dx, y+dy)
+            fill_queue(x + dx, y + dy)
+            speed_list += [(x + dx, y + dy)]
             return True
         return False
 
@@ -164,31 +195,33 @@ def process_queue(grid):
     while action_queue.list:
 
         x, y = action_queue.get()
-        symbol = grid[x,y]
+        symbol = grid[x, y]
 
         if symbol == boulder:
-            if try_move(x,y,0,+1): # down
+            if try_move(x, y, 0, +1):  # down
                 return
-            if grid[x,y+1] in (boulder,deflector_up) and grid[x-1,y]==empty and try_move(x,y,-1,+1): # down-left
-                return
-            if grid[x,y+1] in (boulder,deflector_down) and grid[x+1,y]==empty and try_move(x,y,+1,+1): # down-right
-                return
+            if grid[x, y + 1] in (boulder, deflector_up) and grid[x - 1, y] == empty and try_move(x, y, -1, +1):
+                return  # down-left
+            if grid[x, y + 1] in (boulder, deflector_down) and grid[x + 1, y] == empty and try_move(x, y, +1, +1):
+                return  # down-right
         elif symbol == arrow_left:
-            if try_move(x,y,-1,0): # left
+            if try_move(x, y, -1, 0):  # left
                 return
-            if grid[x-1,y] in (boulder,deflector_down) and grid[x,y-1]==empty and try_move(x,y,-1,-1): # left-up
-                return
-            if grid[x-1,y] in (boulder,deflector_up) and grid[x,y+1]==empty and try_move(x,y,-1,+1): # left-down
-                return
+            if grid[x - 1, y] in (boulder, deflector_down) and grid[x, y - 1] == empty and try_move(x, y, -1, -1):
+                return  # left-up
+            if grid[x - 1, y] in (boulder, deflector_up) and grid[x, y + 1] == empty and try_move(x, y, -1, +1):
+                return  # left-down
         elif symbol == arrow_right:
-            if try_move(x,y,+1,0): # right
+            if try_move(x, y, +1, 0):  # right
                 return
-            if grid[x+1,y] in (boulder,deflector_up) and grid[x,y-1]==empty and try_move(x,y,+1,-1): # right-up
-                return
-            if grid[x+1,y] in (boulder,deflector_down) and grid[x,y+1]==empty and try_move(x,y,+1,+1): # right-down
-                return
+            if grid[x + 1, y] in (boulder, deflector_up) and grid[x, y - 1] == empty and try_move(x, y, +1, -1):
+                return  # right-up
+            if grid[x + 1, y] in (boulder, deflector_down) and grid[x, y + 1] == empty and try_move(x, y, +1, +1):
+                return  # right-down
+    speed_list = []
 
 ## Basic drawing routines
+
 
 def draw_ground(grid, cell_dimensions, color=GRAY):
     return pygame.draw.rect(grid.screen, color, cell_dimensions)
@@ -225,10 +258,11 @@ def draw_text(grid, cell_dimensions, text, pos, size, color):
 def draw_boulder(grid, cell_dimensions):
     draw_ground(grid, cell_dimensions, LIGHTGRAY)
     draw_circle(grid, cell_dimensions, (50, 50), 80, color=(90, 48, 22))
-    x,y,w,h = cell_dimensions
-    cellx = int(x/(grid.cellwidth+grid.margin))
-    celly = int(y/(grid.cellheight+grid.margin))
-    draw_text(grid,cell_dimensions, f'{cellx},{celly}', (50,50), 29, WHITE)
+    x, y, w, h = cell_dimensions
+    cellx = int(x / (grid.cellwidth + grid.margin))
+    celly = int(y / (grid.cellheight + grid.margin))
+    draw_text(grid, cell_dimensions, f'{cellx},{celly}', (50, 50), 29, WHITE)
+
 
 def draw_bomb(grid, cell_dimensions):
     draw_ground(grid, cell_dimensions, LIGHTGRAY)
@@ -254,19 +288,23 @@ def draw_money(grid, cell_dimensions):
     draw_line(grid, cell_dimensions, (40, 25), (60, 25), LIGHTBLUE, 15)
     draw_text(grid, cell_dimensions, '$', (50, 60), 36, WHITE)
 
-class MyQueue():
+
+class MyQueue:
     def __init__(self):
         self.list = []
+
     def put(self, item):
         self.list += [item]
-        #print('PUT', item, len(self.list), self.list)
+        # print('PUT', item, len(self.list), self.list)
+
     def get(self):
         item = self.list[0]
         self.list = self.list[1:]
-        #print('GET', item, grid[item], len(self.list), self.list)
+        # print('GET', item, grid[item], len(self.list), self.list)
         return item
 
-def start_level(grid,level):
+
+def start_level(grid, level):
     global hero
     grid.auto_update = False
     grid.load(f'levels/level{level}.txt')
@@ -274,12 +312,25 @@ def start_level(grid,level):
     grid.auto_update = True
     hero = Hero(grid)
 
+
 if __name__ == '__main__':
+    logging = True
     current_level = 1
     grid = Grid(
-        42, 18, 28, 28, title='test', margin=0, margincolor=GRAY, itemfont='/Library/Fonts/Arial.ttf', framerate=60,
-        statusbar_position = TOP, statusbar_size = 34, full_screen = False
+        42,
+        18,
+        33,
+        33,
+        title='test',
+        margin=0,
+        margincolor=GRAY,
+        itemfont='/Library/Fonts/Arial.ttf',
+        framerate=60,
+        statusbar_position=TOP,
+        statusbar_size=34,
+        full_screen=False,
     )
+    grid.update_fullscreen = False  # Only update the changed bits
     grid.set_drawaction('#', partial(draw_ground, color=(60, 60, 60)))
     grid.set_drawaction('=', partial(draw_ground, color=(70, 70, 70)))
     grid.set_drawaction(':', partial(draw_ground, color=(140, 120, 80)))
@@ -293,7 +344,7 @@ if __name__ == '__main__':
     grid.frame_action = process_queue
     grid.key_action = key_action
 
-    start_level(grid,current_level)
+    start_level(grid, current_level)
 
     action_queue = MyQueue()
     grid.run()
