@@ -4,8 +4,8 @@
 # √ Split into Gridworld and Wanderer projects
 # √ All on GitHub
 # √ Dead by arrows en boulders
-# - Persistent statusbar
-# - Message by kill
+# √ Persistent statusbar
+# √ Message by kill
 # - Win when exit and all money
 # - Level chooser
 # - center screen in full screen mode
@@ -19,14 +19,13 @@
 # GRIDWORLD TODO:
 # - README met voorbeelden en uitleg per functie
 # - Borders ook mogelijk maken naast vakjes (PacMan, Kamertje verhuren)
-
+# - Properties met underscore plus getters/setters waar nodig
 
 import sys
 from functools import partial
 
 # pip3 install git+https://github.com/hpharmsen/gridworld
 from gridworld.grid import Grid, draw_character_cell, TOP, log
-import gridworld
 import pygame
 import drawing
 from game import Game
@@ -46,7 +45,6 @@ def key_action(key, game):
 
 
 def game_step(game):
-    #log( 'game_step')
     game.step()
 
 
@@ -81,7 +79,7 @@ def setup_grid():
 
 
 if __name__ == '__main__':
-    gridworld.grid.logging = True
+    # gridworld.grid.logging = True
     current_level = 0
 
     grid = setup_grid()
@@ -89,7 +87,7 @@ if __name__ == '__main__':
 
     grid.frame_action = partial(game_step, game=game)
     grid.key_action = partial(key_action, game=game)
+    grid.update_statusbar = game.update_statusbar
 
-    game.start_level(1)
-    #grid.redraw()
+    game.start_level(0)
     grid.run()

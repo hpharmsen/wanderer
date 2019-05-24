@@ -1,7 +1,6 @@
 from typing import List
 import drawing
 from game_queue import GameQueue
-import pygame  # TODO: remove dependency on pygame from game.py
 from gridworld.grid import log
 
 
@@ -10,16 +9,16 @@ class Game:
         self.grid = grid
         self.level = 1
         self.active = False
-        self.stars_to_go = 0
+        self.stars_total = 0
+        self.stars_found = 0
         self.teleport_destination = None
-        self.dead = False
 
         self.game_queue = GameQueue(self.grid)
         self.speed_list = []  # Keep track of moving (lethal) objects
 
     def start_level(self, level=-1):
         log('stat_level')
-        self.level = level if level > -1 else 1
+        self.level = level if level > -1 else self.level
         self.grid.auto_update = False
         self.grid.load(f'levels/level{self.level}.txt')
         self.grid.auto_update = True
@@ -32,16 +31,17 @@ class Game:
                     self.hero_x = x
                     self.hero_y = y
                 elif self.grid[x, y] == '*':
-                    self.stars_to_go += 1
+                    self.stars_total += 1
                 elif self.grid[x, y] == 'T':
                     self.teleport_destination = (x, y)
+        self.update_statusbar()
         self.game_queue.reset()
         self.active = True
 
     def move(self, movement):
 
         self.speed_list = []
-        if self.dead:
+        if not self.active:
             return  # No moving by dead hero's
 
         log('game.move')
@@ -67,15 +67,8 @@ class Game:
         # geld -> punten omhoog en move
         elif target == '*':
             rel_move(dx, dy)
-            self.stars_to_go -= 1
-            sx, sy, sw, sh = self.grid.get_statusbar_dimensions()
-            self.grid.clear_statusbar(drawing.DARKGRAY)
-            text = f'{self.stars_to_go} bags to go'
-            font = pygame.font.Font(self.grid.itemfont, 30)
-            rendered = font.render(text, True, drawing.WHITE)
-            # text_rect = text.get_rect()
-            # text_rect.center = (x + w * pos[0] // 100, y + h * pos[1] // 100)
-            self.grid.screen.blit(rendered, (sx, sy))
+            self.stars_found += 1
+            self.update_statusbar()
 
         # boulder of balloon en opzij en niks achter bolder/balloon -> move bolder/balloon en zelf
         elif target == 'O' and dy == 0:
@@ -102,7 +95,7 @@ class Game:
 
         # bom -> dood
         elif target == '!':
-            self.die('Hit by bomb')
+            self.die('Killed by an exploding bomb.')
 
     log('end game.move')
 
@@ -113,7 +106,8 @@ class Game:
 
             if (x, y) in self.speed_list and target == '@':
                 # Uh, oh. speeding object hits the hero.
-                self.die(f'Hit by {source}')
+                source_name = 'a falling boulder' if source == 'O' else 'a speeding arrow'
+                self.die(f'Killed by {source_name}.')
                 return True
 
             if target == ' ':
@@ -125,12 +119,12 @@ class Game:
                 return True
             return False
 
-        #log('game.step', len(self.game_queue))
+        # log('game.step', len(self.game_queue))
         while self.game_queue:  # Loop until interesting symbol found in the queue or queue is empty
             coo = self.game_queue.get()
             x, y = coo
             symbol = self.grid[x, y]
-            log( 'game action', x,y, symbol )
+            log('game action', x, y, symbol)
             if symbol == 'O':
                 if try_move(x, y, 0, +1):  # down
                     break
@@ -153,8 +147,7 @@ class Game:
                 if self.grid[x + 1, y] in ('O', '\\') and self.grid[x, y + 1] == ' ' and try_move(x, y, +1, +1):
                     break  # right-down
 
-        #log('end game.step')
-
+        # log('end game.step')
 
     def fill_queue(self, x, y):
         # Check for items that might move
@@ -163,7 +156,10 @@ class Game:
                 if self.grid[x + dx, y + dy] != ' ':
                     self.game_queue.put((x + dx, y + dy))
 
+    def update_statusbar(self):
+        text = f'Level {self.level}                 {self.stars_found}/{self.stars_total} gold found'
+        drawing.status_bar_message(self.grid, (2, 10), text)
+
     def die(self, message):
-        self.grid.screen.fill(drawing.RED)
-        pygame.display.flip()
-        self.dead = True
+        drawing.full_screen_message(self.grid, drawing.DARK_GRAY, message)
+        self.active = False
