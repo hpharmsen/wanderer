@@ -13,3 +13,9 @@ class GameQueue:
 
     def put(self, element):
         self.queue_list += [element]
+
+    def __len__(self):
+        return len(self.queue_list)
+
+    def __bool__(self):
+        return self.queue_list != []

@@ -2,6 +2,7 @@ from typing import List
 import drawing
 from game_queue import GameQueue
 import pygame  # TODO: remove dependency on pygame from game.py
+from gridworld.grid import log
 
 
 class Game:
@@ -17,11 +18,11 @@ class Game:
         self.speed_list = []  # Keep track of moving (lethal) objects
 
     def start_level(self, level=-1):
-
+        log('stat_level')
         self.level = level if level > -1 else 1
         self.grid.auto_update = False
         self.grid.load(f'levels/level{self.level}.txt')
-        self.auto_update = True
+        self.grid.auto_update = True
         self.grid.redraw()
 
         # Scan the newly loaded level and set game state accordingly
@@ -43,12 +44,14 @@ class Game:
         if self.dead:
             return  # No moving by dead hero's
 
+        log('game.move')
+
         dx, dy = movement
         target = self.grid[self.hero_x + dx, self.hero_y + dy]
 
         def abs_move(x, y):
-            self.game_queue.put((self.hero_x, self.hero_y))
-            self.game_queue.put((x, y))
+            self.fill_queue(self.hero_x, self.hero_y)
+            self.fill_queue(x, y)
             self.grid[self.hero_x, self.hero_y] = ' '
             self.hero_x = x
             self.hero_y = y
@@ -101,6 +104,8 @@ class Game:
         elif target == '!':
             self.die('Hit by bomb')
 
+    log('end game.move')
+
     def step(self):
         def try_move(x, y, dx, dy):
             source = self.grid[x, y]
@@ -120,13 +125,12 @@ class Game:
                 return True
             return False
 
-        while True:  # Loop until interesting symbol found in the queue or queue is empty
+        #log('game.step', len(self.game_queue))
+        while self.game_queue:  # Loop until interesting symbol found in the queue or queue is empty
             coo = self.game_queue.get()
-            if not coo:
-                break
             x, y = coo
             symbol = self.grid[x, y]
-
+            log( 'game action', x,y, symbol )
             if symbol == 'O':
                 if try_move(x, y, 0, +1):  # down
                     break
@@ -148,6 +152,9 @@ class Game:
                     break  # right-up
                 if self.grid[x + 1, y] in ('O', '\\') and self.grid[x, y + 1] == ' ' and try_move(x, y, +1, +1):
                     break  # right-down
+
+        #log('end game.step')
+
 
     def fill_queue(self, x, y):
         # Check for items that might move

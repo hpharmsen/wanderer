@@ -26,31 +26,62 @@ from functools import partial
 
 # pip3 install git+https://github.com/hpharmsen/gridworld
 from gridworld.grid import Grid, draw_character_cell, TOP, log
-import gridworld
 import pygame
+
 import drawing
-from game import Game
+from hero import Hero
+from game_queue import GameQueue
+
+game_active = False
 
 
-def key_action(key, game):
-    log('key action', key)
+def key_action(grid, key):
+    global direction_map, current_level, hero, game_queue, game_active
     if key == pygame.K_q:
         sys.exit()
-    elif key == pygame.K_r or not game.active:
-        game.start_level()
+    elif key == pygame.K_r or not game_active:
+        start_level(grid, current_level)
     else:
-        moves = {pygame.K_LEFT: (-1, 0), pygame.K_RIGHT: (1, 0), pygame.K_UP: (0, -1), pygame.K_DOWN: (0, 1)}
-        movement = moves.get(key)
-        if movement:
-            game.move(movement)
+        move = {pygame.K_LEFT: (-1, 0), pygame.K_RIGHT: (1, 0), pygame.K_UP: (0, -1), pygame.K_DOWN: (0, 1)}.get(key)
+        if move:
+            dirty_cells = hero.move(move)
+            if hero.dead:
+                game_active = False
+            else:
+                for cell in dirty_cells:
+                    game_queue.fill(*cell)
+        log('hero moved')
 
 
-def game_step(game):
-    #log( 'game_step')
-    game.step()
+def start_level(grid, level):
+    global game_active
+
+    grid.auto_update = False
+    grid.load(f'levels/level{level}.txt')
+    grid.auto_update = True
+    grid.redraw()
+    if not hero:
+        hero = Hero(grid)
+    else:
+        hero.__init__(grid)
+    print(hero.dead)
+    game_queue = GameQueue(grid)
+    game_active = True
+    return hero, game_queue
 
 
-def setup_grid():
+def game_logic(grid):
+    global hero, game_active
+    if game_active:
+        message = game_queue.process()
+        if message:
+            game_active = False
+            hero.die(message)
+
+
+if __name__ == '__main__':
+    logging = True
+    current_level = 0
     grid = Grid(
         42,
         18,
@@ -77,19 +108,8 @@ def setup_grid():
     grid.set_drawaction('<', partial(draw_character_cell, character='←'))
     grid.set_drawaction('>', partial(draw_character_cell, character='→'))
 
-    return grid
+    hero, game_queue = start_level(grid, current_level)
 
-
-if __name__ == '__main__':
-    gridworld.grid.logging = True
-    current_level = 0
-
-    grid = setup_grid()
-    game = Game(grid)
-
-    grid.frame_action = partial(game_step, game=game)
-    grid.key_action = partial(key_action, game=game)
-
-    game.start_level(1)
-    #grid.redraw()
+    grid.frame_action = game_logic
+    grid.key_action = key_action
     grid.run()
