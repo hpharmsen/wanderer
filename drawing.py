@@ -11,6 +11,8 @@ DARK_GRAY = (45, 45, 45)
 YELLOW = (192, 192, 0)
 LIGHT_BLUE = (100, 140, 255)
 
+TOP_LEFT = 0
+TOP_RIGHT = 1
 
 def draw_ground(grid, cell_dimensions, color=GRAY):
     return pygame.draw.rect(grid.screen, color, cell_dimensions)
@@ -48,6 +50,11 @@ def draw_boulder(grid, cell_dimensions):
     draw_ground(grid, cell_dimensions, LIGHT_GRAY)
     draw_circle(grid, cell_dimensions, (50, 50), 80, color=(90, 48, 22))
     x, y, w, h = cell_dimensions
+    if grid.statusbar_position == 1:
+        x -= grid.statusbar_size
+    if grid.statusbar_position == 2:
+        y -= grid.statusbar_size
+
     cellx = int(x / (grid.cellwidth + grid.margin))
     celly = int(y / (grid.cellheight + grid.margin))
     draw_text(grid, cell_dimensions, f'{cellx},{celly}', (50, 50), 29, WHITE)
@@ -85,12 +92,61 @@ def full_screen_message(grid, color, message):
     pygame.display.flip()
 
 
-def status_bar_message(grid, coo, text):
+def blit_text( grid, text, font, color, coo, adjust):
     sx, sy, sw, sh = grid.get_statusbar_dimensions()
+    x = sx + sw * coo[0] // 100
+    y = sy + sh * coo[1] // 100
+    rendered = font.render(text, True, color)
+    text_rect = rendered.get_rect()
+    if adjust == TOP_LEFT:
+        text_rect.topleft = (x, y)
+    elif adjust == TOP_RIGHT:
+        text_rect.topright = (x, y)
+    grid.screen.blit(rendered, text_rect)
+    return text_rect
+
+def status_bar_message(grid, coo, text):
     grid.clear_statusbar(DARK_GRAY)
     font = pygame.font.Font(grid.itemfont, 18)
-    rendered = font.render(text, True, WHITE)
-    text_rect = rendered.get_rect()
-    text_rect.topleft = (sx + sw * coo[0] // 100, sy + sh * coo[1] // 100)
-    grid.screen.blit(rendered, text_rect)
+    blit_text( grid, text, font, WHITE, coo, TOP_LEFT)
+    pygame.display.flip()
+
+
+class LevelButton(pygame.sprite.Sprite):
+
+
+    def __init__(self, grid, level):
+        # Call the parent class (Sprite) constructor
+        super().__init__()
+        self.grid = grid
+        self.level = level
+        self.font = pygame.font.Font(grid.itemfont, 12)
+
+        self.x = 48 + 1.7 * ((level-1) % 30)
+        self.y = 10+((level-1) // 30) * 50
+
+    def show(self):
+        self.rect = blit_text( self.grid, str(self.level), self.font, GRAY, (self.x,self.y), TOP_RIGHT )
+
+
+def level_buttons(grid):
+    buttons = pygame.sprite.Group()
+    for l in range(60):
+        level = l+1
+        button = LevelButton(grid, level)
+        buttons.add(button)
+    return buttons
+
+
+def show_levels(grid, buttons):
+    font = pygame.font.Font(grid.itemfont, 12)
+    blit_text( grid, 'choose', font, GRAY, (46,10), TOP_RIGHT)
+    blit_text( grid, 'a level', font, GRAY, (46,60), TOP_RIGHT)
+    for button in buttons:
+        button.show()
+    # for l in range(60):
+    #     level = l + 1
+    #     x = 48 + 1.7 * (l % 30)
+    #     y = 10+(l // 30) * 50
+    #     blit_text( grid, str(level), font, GRAY, (x,y), TOP_RIGHT )
     pygame.display.flip()

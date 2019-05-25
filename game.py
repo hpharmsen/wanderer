@@ -15,6 +15,7 @@ class Game:
 
         self.game_queue = GameQueue(self.grid)
         self.speed_list = []  # Keep track of moving (lethal) objects
+        self.level_buttons = drawing.level_buttons(grid)
 
     def start_level(self, level=-1):
         log('stat_level')
@@ -170,6 +171,7 @@ class Game:
     def update_statusbar(self):
         text = f'Level {self.level}                 {self.stars_found}/{self.stars_total} gold found'
         drawing.status_bar_message(self.grid, (2, 15), text)
+        drawing.show_levels(self.grid, self.level_buttons)
 
     def die(self, message):
         drawing.full_screen_message(self.grid, drawing.RED, message)

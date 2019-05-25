@@ -8,7 +8,7 @@
 # √ Message by kill
 # √ Win when exit and all money
 # √ key repeat
-# - Level chooser
+# √ Level chooser
 # - center screen in full screen mode
 
 # √ Switch between update and flip
@@ -43,6 +43,12 @@ def key_action(key, game):
         movement = moves.get(key)
         if movement:
             game.move(movement)
+
+
+def mouse_click(pos, game):
+    for button in game.level_buttons:
+        if button.rect.collidepoint(*pos):
+            game.start_level(button.level)
 
 
 def game_step(game):
@@ -88,6 +94,7 @@ if __name__ == '__main__':
 
     grid.frame_action = partial(game_step, game=game)
     grid.key_action = partial(key_action, game=game)
+    grid.mouse_click_action = partial(mouse_click, game=game)
     grid.update_statusbar = game.update_statusbar
 
     game.start_level(2)
