@@ -24,6 +24,9 @@ class Game:
         self.grid.auto_update = True
         self.grid.redraw()
 
+        self.stars_total = 0
+        self.stars_found = 0
+        self.teleport_destination = None
         # Scan the newly loaded level and set game state accordingly
         for y in range(self.grid.height):
             for x in range(self.grid.width):
@@ -32,8 +35,11 @@ class Game:
                     self.hero_y = y
                 elif self.grid[x, y] == '*':
                     self.stars_total += 1
-                elif self.grid[x, y] == 'T':
+                elif self.grid[x, y] == 'A':
                     self.teleport_destination = (x, y)
+                elif self.grid[x,y] == 'C':
+                    # Time Capsule. Not implemented.
+                    self.grid[x,y] = ' '
         self.update_statusbar()
         self.game_queue.reset()
         self.active = True
@@ -93,9 +99,14 @@ class Game:
             rel_move(dx, dy)
             abs_move(*self.teleport_destination)
 
-        # bom -> dood
+        # bomb -> dead
         elif target == '!':
             self.die('Killed by an exploding bomb.')
+
+        # Exit
+        elif target == 'X' and self.stars_found==self.stars_total:
+            rel_move(dx, dy)
+            self.win()
 
     log('end game.move')
 
@@ -158,8 +169,13 @@ class Game:
 
     def update_statusbar(self):
         text = f'Level {self.level}                 {self.stars_found}/{self.stars_total} gold found'
-        drawing.status_bar_message(self.grid, (2, 10), text)
+        drawing.status_bar_message(self.grid, (2, 15), text)
 
     def die(self, message):
-        drawing.full_screen_message(self.grid, drawing.DARK_GRAY, message)
+        drawing.full_screen_message(self.grid, drawing.RED, message)
+        self.active = False
+
+    def win(self):
+        drawing.full_screen_message(self.grid, drawing.GREEN, 'Level complete!')
+        self.level += 1
         self.active = False

@@ -2,7 +2,7 @@ import pygame
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
-GREEN = (12, 192, 12)
+GREEN = (12, 160, 12)
 RED = (200, 0, 0)
 BLUE = (0, 0, 128)
 LIGHT_GRAY = (192, 192, 192)

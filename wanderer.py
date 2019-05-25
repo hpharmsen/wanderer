@@ -6,7 +6,8 @@
 # √ Dead by arrows en boulders
 # √ Persistent statusbar
 # √ Message by kill
-# - Win when exit and all money
+# √ Win when exit and all money
+# √ key repeat
 # - Level chooser
 # - center screen in full screen mode
 
@@ -89,5 +90,5 @@ if __name__ == '__main__':
     grid.key_action = partial(key_action, game=game)
     grid.update_statusbar = game.update_statusbar
 
-    game.start_level(0)
+    game.start_level(2)
     grid.run()
