@@ -1,33 +1,48 @@
-from typing import List
+import os
+import math
 import drawing
 from game_queue import GameQueue
-from gridworld.grid import log
 
+LEVEL_FILE = 'lastlevel.txt'
+SAVE_FILE = 'savegame.txt'
 
 class Game:
     def __init__(self, grid):
         self.grid = grid
-        self.level = 1
         self.active = False
         self.stars_total = 0
         self.stars_found = 0
         self.teleport_destination = None
+        if os.path.isfile(LEVEL_FILE):
+            with open(LEVEL_FILE) as f:
+                self.level = int(f.read())
+        else:
+            self.level = 1
 
         self.game_queue = GameQueue(self.grid)
         self.speed_list = []  # Keep track of moving (lethal) objects
+        self.monsters = [] # List of all monsters in the level
         self.level_buttons = drawing.level_buttons(grid)
 
     def start_level(self, level=-1):
-        log('stat_level')
         self.level = level if level > -1 else self.level
+        self.load_level(level)
+        self.init_level()
+
+    def load_level(self, level):
         self.grid.auto_update = False
         self.grid.load(f'levels/level{self.level}.txt')
         self.grid.auto_update = True
         self.grid.redraw()
+        with open(LEVEL_FILE, 'w') as f:
+            f.write(str(self.level))
 
+    def init_level(self):
         self.stars_total = 0
         self.stars_found = 0
         self.teleport_destination = None
+        self.monsters = []
+        self.monsters_can_move = False # Monsters can only move after a player move
         # Scan the newly loaded level and set game state accordingly
         for y in range(self.grid.height):
             for x in range(self.grid.width):
@@ -38,6 +53,8 @@ class Game:
                     self.stars_total += 1
                 elif self.grid[x, y] == 'A':
                     self.teleport_destination = (x, y)
+                elif self.grid[x,y] == 'M': # Monster
+                    self.monsters += [(x,y)]
                 elif self.grid[x,y] == 'C':
                     # Time Capsule. Not implemented.
                     self.grid[x,y] = ' '
@@ -45,20 +62,18 @@ class Game:
         self.game_queue.reset()
         self.active = True
 
-    def move(self, movement):
+    def move_hero(self, movement):
 
         self.speed_list = []
         if not self.active:
             return  # No moving by dead hero's
 
-        log('game.move')
-
         dx, dy = movement
         target = self.grid[self.hero_x + dx, self.hero_y + dy]
 
         def abs_move(x, y):
-            self.fill_queue(self.hero_x, self.hero_y)
-            self.fill_queue(x, y)
+            self.fill_queue(self.hero_x, self.hero_y) # Set previous hero position as 'dirty'
+            #self.fill_queue(x, y)
             self.grid[self.hero_x, self.hero_y] = ' '
             self.hero_x = x
             self.hero_y = y
@@ -104,39 +119,75 @@ class Game:
         elif target == '!':
             self.die('Killed by an exploding bomb.')
 
+        # monster -> dead
+        elif target == 'M':
+            self.die('Killed by walking into a monster.')
+
         # Exit
         elif target == 'X' and self.stars_found==self.stars_total:
             rel_move(dx, dy)
             self.win()
 
-    log('end game.move')
+        self.monsters_can_move = True
 
-    def step(self):
+    def move_monsters(self):
+        for index, monster in enumerate(self.monsters):
+            x, y = monster
+            best_dist_to_hero = math.sqrt((self.hero_x-x) ** 2 + (self.hero_y-y) ** 2)
+            best_direction = None
+            for direction in [(1,0), (0,1), (-1,0), (0,-1)]:
+                dx, dy = direction
+                newx, newy = x+dx, y+dy
+                if not self.grid[newx,newy] in  (' ', '@'):
+                    continue # No space in that direction
+                dist_to_hero = math.sqrt((self.hero_x-newx) ** 2 + (self.hero_y-newy) ** 2)
+                if dist_to_hero < best_dist_to_hero: # Direction found that brings the monster closer to the hero
+                    best_dist_to_hero = dist_to_hero
+                    best_direction = direction
+            if best_direction:
+                dx, dy = best_direction
+                newx, newy = x+dx, y+dy
+                if self.grid[newx,newy] == '@':
+                    self.die('Killed by a monster.')
+                else:
+                    self.grid[newx,newy] = 'M' # Move the monster
+                    self.grid[x,y] = ' '
+                    self.monsters[index] = (newx, newy)
+                    #self.fill_queue(x, y)
+                    #self.fill_queue(newx, newy)
+        self.monsters_can_move = False
+
+    def timer_step(self):
         def try_move(x, y, dx, dy):
             source = self.grid[x, y]
             target = self.grid[x + dx, y + dy]
 
-            if (x, y) in self.speed_list and target == '@':
-                # Uh, oh. speeding object hits the hero.
-                source_name = 'a falling boulder' if source == 'O' else 'a speeding arrow'
-                self.die(f'Killed by {source_name}.')
-                return True
+            if (x, y) in self.speed_list:
+                if target == '@':
+                    # Uh, oh. speeding object hits the hero.
+                    source_name = 'a falling boulder' if source == 'O' else 'a speeding arrow'
+                    self.die(f'Killed by {source_name}.')
+                    return True
+                elif target == 'M': # Kill monster
+                    self.monsters.remove((x + dx, y + dy))
+                    target = ' '
 
             if target == ' ':
                 self.grid[x + dx, y + dy] = self.grid[x, y]
                 self.grid[x, y] = ' '
-                self.fill_queue(x, y)
-                self.fill_queue(x + dx, y + dy)
+                self.fill_queue(x, y) # Stir up old square
+                self.game_queue.put((x + dx, y + dy)) # Put new square on the list for further fall or flight
                 self.speed_list += [(x + dx, y + dy)]
                 return True
             return False
 
-        # log('game.step', len(self.game_queue))
+        if not self.active:
+            return
+
         while self.game_queue:  # Loop until interesting symbol found in the queue or queue is empty
             coo = self.game_queue.get()
             x, y = coo
             symbol = self.grid[x, y]
-            log('game action', x, y, symbol)
             if symbol == 'O':
                 if try_move(x, y, 0, +1):  # down
                     break
@@ -159,13 +210,32 @@ class Game:
                 if self.grid[x + 1, y] in ('O', '\\') and self.grid[x, y + 1] == ' ' and try_move(x, y, +1, +1):
                     break  # right-down
 
-        # log('end game.step')
+        if self.monsters_can_move and not self.game_queue: # Player has moved and all reactions are done
+            self.move_monsters() # Now move the monsters
 
     def fill_queue(self, x, y):
-        # Check for items that might move
-        for dx in range(-1, 2):
-            for dy in range(-1, 2):
-                if self.grid[x + dx, y + dy] != ' ':
+        # Boulders fall if one of the following . positions get's emptied:
+        #
+        #   . O .
+        #   . . .
+        #   . . .
+        #
+        # Arrows fly if one of the following . positions get's emptied:
+        #
+        #   . . .    . . .
+        #   > . .    . . <
+        #   . . .    . . .
+        #
+        # So always next to or one or two levels under the boulder
+        # and next to or one or two levels in front of the arrow.
+
+        for dx in range(-2,3):
+            for dy in range(-2,3):
+                c = self.grid[x + dx, y + dy]
+                if (c=='<' and dx>=0 and -2<dy<2) or \
+                   (c=='>' and dx<=0 and -2<dy<2) or \
+                   (c=='O' and dy<=0 and -2<dx<2) or \
+                   (c=='^' and dy>=0 and -2<dx<2):
                     self.game_queue.put((x + dx, y + dy))
 
     def update_statusbar(self):
@@ -181,3 +251,17 @@ class Game:
         drawing.full_screen_message(self.grid, drawing.GREEN, 'Level complete!')
         self.level += 1
         self.active = False
+
+    def save_state(self):
+        if not self.active:
+            return
+        self.grid.save(SAVE_FILE)
+
+    def load_state(self):
+        if not os.path.isfile(SAVE_FILE):
+            return
+        self.grid.auto_update = False
+        self.grid.load(SAVE_FILE)
+        self.grid.auto_update = True
+        self.init_level()
+        self.grid.redraw()

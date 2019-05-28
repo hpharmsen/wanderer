@@ -1,48 +1,40 @@
 # https://csijh.github.io/wanderer/javascript/index.html
 
 # TODO:
-# √ Split into Gridworld and Wanderer projects
-# √ All on GitHub
-# √ Dead by arrows en boulders
-# √ Persistent statusbar
-# √ Message by kill
-# √ Win when exit and all money
-# √ key repeat
-# √ Level chooser
-# - center screen in full screen mode
-
-# √ Switch between update and flip
-# - Readme.md with dependencies and usage
+# √ Reimplement fill_queue
+# √ Readme.md with dependencies and usage
+# - implement mini monsters
+# √ S to save level progress
 # - implement balloons
-# - implement monsters
 # - implement time capsule and maximum moves
 
 # GRIDWORLD TODO:
-# - README met voorbeelden en uitleg per functie
 # - Borders ook mogelijk maken naast vakjes (PacMan, Kamertje verhuren)
-# - Properties met underscore plus getters/setters waar nodig
+# - Properties with underscore plus getters/setters where needed
 
 import sys
 from functools import partial
 
 # pip3 install git+https://github.com/hpharmsen/gridworld
-from gridworld.grid import Grid, draw_character_cell, TOP, log
+from gridworld.grid import Grid, draw_character_cell, TOP
 import pygame
 import drawing
-from game import Game
-
+from game_logic import Game
 
 def key_action(key, game):
-    log('key action', key)
     if key == pygame.K_q:
         sys.exit()
+    elif key == pygame.K_s:
+        game.save_state()
+    elif key == pygame.K_l:
+        game.load_state()
     elif key == pygame.K_r or not game.active:
         game.start_level()
     else:
-        moves = {pygame.K_LEFT: (-1, 0), pygame.K_RIGHT: (1, 0), pygame.K_UP: (0, -1), pygame.K_DOWN: (0, 1)}
+        moves = {pygame.K_LEFT: (-1, 0), pygame.K_RIGHT: (1, 0), pygame.K_UP: (0, -1), pygame.K_DOWN: (0, 1), pygame.K_SPACE: (0, 0)}
         movement = moves.get(key)
         if movement:
-            game.move(movement)
+            game.move_hero(movement)
 
 
 def mouse_click(pos, game):
@@ -51,8 +43,8 @@ def mouse_click(pos, game):
             game.start_level(button.level)
 
 
-def game_step(game):
-    game.step()
+def timer_step(game):
+    game.timer_step()
 
 
 def setup_grid():
@@ -61,9 +53,9 @@ def setup_grid():
         18,
         33,
         33,
-        title='test',
+        title='Wanderer',
+        cellcolor=drawing.LIGHT_GRAY,
         margin=0,
-        margincolor=drawing.GRAY,
         itemfont='/Library/Fonts/Arial.ttf',
         framerate=60,
         statusbar_position=TOP,
@@ -79,6 +71,8 @@ def setup_grid():
     grid.set_drawaction('/', drawing.draw_up_line)
     grid.set_drawaction('!', drawing.draw_bomb)
     grid.set_drawaction('*', drawing.draw_money)
+    grid.set_drawaction('@', drawing.draw_hero)
+    grid.set_drawaction('M', drawing.draw_monster)
     grid.set_drawaction('<', partial(draw_character_cell, character='←'))
     grid.set_drawaction('>', partial(draw_character_cell, character='→'))
 
@@ -86,16 +80,13 @@ def setup_grid():
 
 
 if __name__ == '__main__':
-    # gridworld.grid.logging = True
-    current_level = 0
-
     grid = setup_grid()
     game = Game(grid)
 
-    grid.frame_action = partial(game_step, game=game)
+    grid.frame_action = partial(timer_step, game=game)
     grid.key_action = partial(key_action, game=game)
     grid.mouse_click_action = partial(mouse_click, game=game)
     grid.update_statusbar = game.update_statusbar
-
-    game.start_level(2)
+    pygame.key.set_repeat(100, 60)
+    game.start_level()
     grid.run()
