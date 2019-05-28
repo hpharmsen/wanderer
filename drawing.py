@@ -1,5 +1,6 @@
 import pygame
 import pygame.gfxdraw
+
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (12, 160, 12)
@@ -19,6 +20,7 @@ TOP_RIGHT = 1
 def draw_ground(grid, cell_dimensions, color=GRAY):
     return pygame.draw.rect(grid.screen, color, cell_dimensions)
 
+
 def draw_line(grid, cell_dimensions, fromcoo, tocoo, color, width):
     x, y, w, h = cell_dimensions
     pygame.draw.line(
@@ -32,8 +34,8 @@ def draw_line(grid, cell_dimensions, fromcoo, tocoo, color, width):
 
 def draw_circle(grid, cell_dimensions, pos, diameter, color=DARK_GRAY):
     x, y, w, h = cell_dimensions
-    pygame.gfxdraw.aacircle(grid.screen,  x + w * pos[0] // 100, y + h * pos[1] // 100, w * diameter // 200, color)
-    pygame.gfxdraw.filled_circle(grid.screen,  x + w * pos[0] // 100, y + h * pos[1] // 100, w * diameter // 200, color)
+    pygame.gfxdraw.aacircle(grid.screen, x + w * pos[0] // 100, y + h * pos[1] // 100, w * diameter // 200, color)
+    pygame.gfxdraw.filled_circle(grid.screen, x + w * pos[0] // 100, y + h * pos[1] // 100, w * diameter // 200, color)
 
 
 def draw_text(grid, cell_dimensions, text, pos, size, color):
@@ -47,17 +49,18 @@ def draw_text(grid, cell_dimensions, text, pos, size, color):
 
 # Specific drawing routines
 
+
 def draw_boulder(grid, cell_dimensions):
     draw_circle(grid, cell_dimensions, (50, 50), 80, color=(90, 48, 22))
-    #x, y, w, h = cell_dimensions
-    #if grid.statusbar_position == 1:
+    # x, y, w, h = cell_dimensions
+    # if grid.statusbar_position == 1:
     #    x -= grid.statusbar_size
-    #if grid.statusbar_position == 2:
+    # if grid.statusbar_position == 2:
     #    y -= grid.statusbar_size
 
-    #cellx = int(x / (grid.cellwidth + grid.margin))
-    #celly = int(y / (grid.cellheight + grid.margin))
-    #draw_text(grid, cell_dimensions, f'{cellx},{celly}', (50, 50), 29, WHITE)
+    # cellx = int(x / (grid.cellwidth + grid.margin))
+    # celly = int(y / (grid.cellheight + grid.margin))
+    # draw_text(grid, cell_dimensions, f'{cellx},{celly}', (50, 50), 29, WHITE)
 
 
 def draw_bomb(grid, cell_dimensions):
@@ -87,15 +90,17 @@ def draw_hero(grid, cell_dimensions):
     draw_line(grid, cell_dimensions, (50, 20), (60, 95), RED, 15)
     draw_line(grid, cell_dimensions, (50, 20), (40, 95), RED, 15)
 
+
 def draw_monster(grid, cell_dimensions):
-    draw_circle(grid, cell_dimensions, (50, 50), 80, LIGHT_GREEN) # body
-    draw_circle(grid,cell_dimensions, (30,50), 10, BLACK) # eye
-    draw_circle(grid,cell_dimensions, (70,50), 10, BLACK) # eye
-    draw_line(grid, cell_dimensions, (25,10), (25,30), DARK_GRAY, 10 ) # horn
-    draw_line(grid, cell_dimensions, (75,10), (75,30), DARK_GRAY, 10 ) # horn
-    draw_line(grid, cell_dimensions, (25,70), (75,70), DARK_GRAY, 8) # Mouth
-    draw_line(grid, cell_dimensions, (35,70), (35,80), WHITE, 10 ) # talon
-    draw_line(grid, cell_dimensions, (65,70), (65,80), WHITE, 10 ) # talon
+    draw_circle(grid, cell_dimensions, (50, 50), 80, LIGHT_GREEN)  # body
+    draw_circle(grid, cell_dimensions, (30, 50), 10, BLACK)  # eye
+    draw_circle(grid, cell_dimensions, (70, 50), 10, BLACK)  # eye
+    draw_line(grid, cell_dimensions, (25, 10), (25, 30), DARK_GRAY, 10)  # horn
+    draw_line(grid, cell_dimensions, (75, 10), (75, 30), DARK_GRAY, 10)  # horn
+    draw_line(grid, cell_dimensions, (25, 70), (75, 70), DARK_GRAY, 8)  # Mouth
+    draw_line(grid, cell_dimensions, (35, 70), (35, 80), WHITE, 10)  # talon
+    draw_line(grid, cell_dimensions, (65, 70), (65, 80), WHITE, 10)  # talon
+
 
 def full_screen_message(grid, color, message):
     play_area_dimensions = grid.cell_dimensions(0, 0, grid.width, grid.height)
@@ -104,7 +109,7 @@ def full_screen_message(grid, color, message):
     pygame.display.flip()
 
 
-def blit_text( grid, text, font, color, coo, adjust):
+def blit_text(grid, text, font, color, coo, adjust):
     sx, sy, sw, sh = grid.get_statusbar_dimensions()
     x = sx + sw * coo[0] // 100
     y = sy + sh * coo[1] // 100
@@ -121,12 +126,11 @@ def blit_text( grid, text, font, color, coo, adjust):
 def status_bar_message(grid, coo, text):
     grid.clear_statusbar(DARK_GRAY)
     font = pygame.font.Font(grid.itemfont, 18)
-    blit_text( grid, text, font, WHITE, coo, TOP_LEFT)
+    blit_text(grid, text, font, WHITE, coo, TOP_LEFT)
     pygame.display.flip()
 
 
 class LevelButton(pygame.sprite.Sprite):
-
     def __init__(self, grid, level):
         # Call the parent class (Sprite) constructor
         super().__init__()
@@ -134,17 +138,17 @@ class LevelButton(pygame.sprite.Sprite):
         self.level = level
         self.font = pygame.font.Font(grid.itemfont, 12)
 
-        self.x = 48 + 1.7 * ((level-1) % 30)
-        self.y = 10+((level-1) // 30) * 50
+        self.x = 48 + 1.7 * ((level - 1) % 30)
+        self.y = 10 + ((level - 1) // 30) * 50
 
     def show(self):
-        self.rect = blit_text( self.grid, str(self.level), self.font, GRAY, (self.x,self.y), TOP_RIGHT )
+        self.rect = blit_text(self.grid, str(self.level), self.font, GRAY, (self.x, self.y), TOP_RIGHT)
 
 
 def level_buttons(grid):
     buttons = pygame.sprite.Group()
     for l in range(60):
-        level = l+1
+        level = l + 1
         button = LevelButton(grid, level)
         buttons.add(button)
     return buttons
@@ -152,8 +156,8 @@ def level_buttons(grid):
 
 def show_levels(grid, buttons):
     font = pygame.font.Font(grid.itemfont, 12)
-    blit_text( grid, 'choose', font, GRAY, (46,10), TOP_RIGHT)
-    blit_text( grid, 'a level', font, GRAY, (46,60), TOP_RIGHT)
+    blit_text(grid, 'choose', font, GRAY, (46, 10), TOP_RIGHT)
+    blit_text(grid, 'a level', font, GRAY, (46, 60), TOP_RIGHT)
     for button in buttons:
         button.show()
     # for l in range(60):

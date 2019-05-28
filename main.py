@@ -21,6 +21,7 @@ import pygame
 import drawing
 from game_logic import Game
 
+
 def key_action(key, game):
     if key == pygame.K_q:
         sys.exit()
@@ -31,7 +32,13 @@ def key_action(key, game):
     elif key == pygame.K_r or not game.active:
         game.start_level()
     else:
-        moves = {pygame.K_LEFT: (-1, 0), pygame.K_RIGHT: (1, 0), pygame.K_UP: (0, -1), pygame.K_DOWN: (0, 1), pygame.K_SPACE: (0, 0)}
+        moves = {
+            pygame.K_LEFT: (-1, 0),
+            pygame.K_RIGHT: (1, 0),
+            pygame.K_UP: (0, -1),
+            pygame.K_DOWN: (0, 1),
+            pygame.K_SPACE: (0, 0),
+        }
         movement = moves.get(key)
         if movement:
             game.move_hero(movement)

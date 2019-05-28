@@ -6,6 +6,7 @@ from game_queue import GameQueue
 LEVEL_FILE = 'lastlevel.txt'
 SAVE_FILE = 'savegame.txt'
 
+
 class Game:
     def __init__(self, grid):
         self.grid = grid
@@ -21,7 +22,7 @@ class Game:
 
         self.game_queue = GameQueue(self.grid)
         self.speed_list = []  # Keep track of moving (lethal) objects
-        self.monsters = [] # List of all monsters in the level
+        self.monsters = []  # List of all monsters in the level
         self.level_buttons = drawing.level_buttons(grid)
 
     def start_level(self, level=-1):
@@ -42,7 +43,7 @@ class Game:
         self.stars_found = 0
         self.teleport_destination = None
         self.monsters = []
-        self.monsters_can_move = False # Monsters can only move after a player move
+        self.monsters_can_move = False  # Monsters can only move after a player move
         # Scan the newly loaded level and set game state accordingly
         for y in range(self.grid.height):
             for x in range(self.grid.width):
@@ -53,11 +54,11 @@ class Game:
                     self.stars_total += 1
                 elif self.grid[x, y] == 'A':
                     self.teleport_destination = (x, y)
-                elif self.grid[x,y] == 'M': # Monster
-                    self.monsters += [(x,y)]
-                elif self.grid[x,y] == 'C':
+                elif self.grid[x, y] == 'M':  # Monster
+                    self.monsters += [(x, y)]
+                elif self.grid[x, y] == 'C':
                     # Time Capsule. Not implemented.
-                    self.grid[x,y] = ' '
+                    self.grid[x, y] = ' '
         self.update_statusbar()
         self.game_queue.reset()
         self.active = True
@@ -72,8 +73,8 @@ class Game:
         target = self.grid[self.hero_x + dx, self.hero_y + dy]
 
         def abs_move(x, y):
-            self.fill_queue(self.hero_x, self.hero_y) # Set previous hero position as 'dirty'
-            #self.fill_queue(x, y)
+            self.fill_queue(self.hero_x, self.hero_y)  # Set previous hero position as 'dirty'
+            # self.fill_queue(x, y)
             self.grid[self.hero_x, self.hero_y] = ' '
             self.hero_x = x
             self.hero_y = y
@@ -124,7 +125,7 @@ class Game:
             self.die('Killed by walking into a monster.')
 
         # Exit
-        elif target == 'X' and self.stars_found==self.stars_total:
+        elif target == 'X' and self.stars_found == self.stars_total:
             rel_move(dx, dy)
             self.win()
 
@@ -133,28 +134,28 @@ class Game:
     def move_monsters(self):
         for index, monster in enumerate(self.monsters):
             x, y = monster
-            best_dist_to_hero = math.sqrt((self.hero_x-x) ** 2 + (self.hero_y-y) ** 2)
+            best_dist_to_hero = math.sqrt((self.hero_x - x) ** 2 + (self.hero_y - y) ** 2)
             best_direction = None
-            for direction in [(1,0), (0,1), (-1,0), (0,-1)]:
+            for direction in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
                 dx, dy = direction
-                newx, newy = x+dx, y+dy
-                if not self.grid[newx,newy] in  (' ', '@'):
-                    continue # No space in that direction
-                dist_to_hero = math.sqrt((self.hero_x-newx) ** 2 + (self.hero_y-newy) ** 2)
-                if dist_to_hero < best_dist_to_hero: # Direction found that brings the monster closer to the hero
+                newx, newy = x + dx, y + dy
+                if not self.grid[newx, newy] in (' ', '@'):
+                    continue  # No space in that direction
+                dist_to_hero = math.sqrt((self.hero_x - newx) ** 2 + (self.hero_y - newy) ** 2)
+                if dist_to_hero < best_dist_to_hero:  # Direction found that brings the monster closer to the hero
                     best_dist_to_hero = dist_to_hero
                     best_direction = direction
             if best_direction:
                 dx, dy = best_direction
-                newx, newy = x+dx, y+dy
-                if self.grid[newx,newy] == '@':
+                newx, newy = x + dx, y + dy
+                if self.grid[newx, newy] == '@':
                     self.die('Killed by a monster.')
                 else:
-                    self.grid[newx,newy] = 'M' # Move the monster
-                    self.grid[x,y] = ' '
+                    self.grid[newx, newy] = 'M'  # Move the monster
+                    self.grid[x, y] = ' '
                     self.monsters[index] = (newx, newy)
-                    #self.fill_queue(x, y)
-                    #self.fill_queue(newx, newy)
+                    # self.fill_queue(x, y)
+                    # self.fill_queue(newx, newy)
         self.monsters_can_move = False
 
     def timer_step(self):
@@ -168,15 +169,15 @@ class Game:
                     source_name = 'a falling boulder' if source == 'O' else 'a speeding arrow'
                     self.die(f'Killed by {source_name}.')
                     return True
-                elif target == 'M': # Kill monster
+                elif target == 'M':  # Kill monster
                     self.monsters.remove((x + dx, y + dy))
                     target = ' '
 
             if target == ' ':
                 self.grid[x + dx, y + dy] = self.grid[x, y]
                 self.grid[x, y] = ' '
-                self.fill_queue(x, y) # Stir up old square
-                self.game_queue.put((x + dx, y + dy)) # Put new square on the list for further fall or flight
+                self.fill_queue(x, y)  # Stir up old square
+                self.game_queue.put((x + dx, y + dy))  # Put new square on the list for further fall or flight
                 self.speed_list += [(x + dx, y + dy)]
                 return True
             return False
@@ -210,8 +211,8 @@ class Game:
                 if self.grid[x + 1, y] in ('O', '\\') and self.grid[x, y + 1] == ' ' and try_move(x, y, +1, +1):
                     break  # right-down
 
-        if self.monsters_can_move and not self.game_queue: # Player has moved and all reactions are done
-            self.move_monsters() # Now move the monsters
+        if self.monsters_can_move and not self.game_queue:  # Player has moved and all reactions are done
+            self.move_monsters()  # Now move the monsters
 
     def fill_queue(self, x, y):
         # Boulders fall if one of the following . positions get's emptied:
@@ -229,13 +230,15 @@ class Game:
         # So always next to or one or two levels under the boulder
         # and next to or one or two levels in front of the arrow.
 
-        for dx in range(-2,3):
-            for dy in range(-2,3):
+        for dx in range(-2, 3):
+            for dy in range(-2, 3):
                 c = self.grid[x + dx, y + dy]
-                if (c=='<' and dx>=0 and -2<dy<2) or \
-                   (c=='>' and dx<=0 and -2<dy<2) or \
-                   (c=='O' and dy<=0 and -2<dx<2) or \
-                   (c=='^' and dy>=0 and -2<dx<2):
+                if (
+                    (c == '<' and dx >= 0 and -2 < dy < 2)
+                    or (c == '>' and dx <= 0 and -2 < dy < 2)
+                    or (c == 'O' and dy <= 0 and -2 < dx < 2)
+                    or (c == '^' and dy >= 0 and -2 < dx < 2)
+                ):
                     self.game_queue.put((x + dx, y + dy))
 
     def update_statusbar(self):
