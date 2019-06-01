@@ -11,7 +11,12 @@ class GameQueue:
             self.queue_list = self.queue_list[1:]
             return element
 
-    def put(self, element):
+    def insert(self, element):
+        '''Add element to beginning of the queue'''
+        self.queue_list = [element] + self.queue_list
+
+    def push(self, element):
+        '''Add element to the end of the queue'''
         self.queue_list += [element]
 
     def __len__(self):

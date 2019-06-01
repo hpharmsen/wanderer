@@ -23,7 +23,7 @@ class Game:
         self.game_queue = GameQueue(self.grid)
         self.speed_list = []  # Keep track of moving (lethal) objects
         self.monsters = []  # List of all monsters in the level
-        self.level_buttons = drawing.level_buttons(grid)
+        self.level_buttons = drawing.level_buttons(grid, self.level)
 
     def start_level(self, level=-1):
         self.level = level if level > -1 else self.level
@@ -54,12 +54,12 @@ class Game:
                     self.stars_total += 1
                 elif self.grid[x, y] == 'A':
                     self.teleport_destination = (x, y)
-                elif self.grid[x, y] == 'M':  # Monster
+                elif self.grid[x, y] in ('M', 'S'):  # Monster or baby monster
                     self.monsters += [(x, y)]
                 elif self.grid[x, y] == 'C':
                     # Time Capsule. Not implemented.
                     self.grid[x, y] = ' '
-        self.update_statusbar()
+        self.update_sidebar()
         self.game_queue.reset()
         self.active = True
 
@@ -73,8 +73,8 @@ class Game:
         target = self.grid[self.hero_x + dx, self.hero_y + dy]
 
         def abs_move(x, y):
-            self.fill_queue(self.hero_x, self.hero_y)  # Set previous hero position as 'dirty'
-            # self.fill_queue(x, y)
+            self.game_queue.insert((x, y))  # Set previous hero position as 'dirty'
+            self.fill_queue(self.hero_x, self.hero_y)
             self.grid[self.hero_x, self.hero_y] = ' '
             self.hero_x = x
             self.hero_y = y
@@ -91,24 +91,28 @@ class Game:
         elif target == '*':
             rel_move(dx, dy)
             self.stars_found += 1
-            self.update_statusbar()
+            self.update_sidebar()
 
         # boulder of balloon en opzij en niks achter bolder/balloon -> move bolder/balloon en zelf
         elif target == 'O' and dy == 0:
             if dx == -1 and self.grid[self.hero_x - 2, self.hero_y] == ' ':
                 self.grid[self.hero_x - 2, self.hero_y] = target
+                self.game_queue.push((self.hero_x - 2, self.hero_y))
                 rel_move(dx, dy)
             elif dx == 1 and self.grid[self.hero_x + 2, self.hero_y] == ' ':
                 self.grid[self.hero_x + 2, self.hero_y] = target
+                self.game_queue.push((self.hero_x + 2, self.hero_y))
                 rel_move(dx, dy)
 
         # arrow en omhoog/laag en niks achter arrow -> move arrow en zelf
         elif target in ('<', '>') and dx == 0:
             if dy == -1 and self.grid[self.hero_x, self.hero_y - 2] == ' ':
                 self.grid[self.hero_x, self.hero_y - 2] = target
+                self.game_queue.push((self.hero_x, self.hero_y - 2))
                 rel_move(dx, dy)
             elif dy == 1 and self.grid[self.hero_x, self.hero_y + 2] == ' ':
                 self.grid[self.hero_x, self.hero_y + 2] = target
+                self.game_queue.push((self.hero_x, self.hero_y + 2))
                 rel_move(dx, dy)
 
         # teleport -> teleport
@@ -132,26 +136,56 @@ class Game:
         self.monsters_can_move = True
 
     def move_monsters(self):
+        def at_dir(dir):
+            return self.grid[x + directions[dir][0], y + directions[dir][1]]
+
+        # Monsters
         for index, monster in enumerate(self.monsters):
             x, y = monster
-            best_dist_to_hero = math.sqrt((self.hero_x - x) ** 2 + (self.hero_y - y) ** 2)
-            best_direction = None
-            for direction in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
-                dx, dy = direction
-                newx, newy = x + dx, y + dy
-                if not self.grid[newx, newy] in (' ', '@'):
-                    continue  # No space in that direction
-                dist_to_hero = math.sqrt((self.hero_x - newx) ** 2 + (self.hero_y - newy) ** 2)
-                if dist_to_hero < best_dist_to_hero:  # Direction found that brings the monster closer to the hero
-                    best_dist_to_hero = dist_to_hero
-                    best_direction = direction
+            monster_type = self.grid[x, y]
+            if monster_type == 'M':  # Full grown monster
+                best_dist_to_hero = math.sqrt((self.hero_x - x) ** 2 + (self.hero_y - y) ** 2)
+                best_direction = None
+                for direction in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
+                    dx, dy = direction
+                    newx, newy = x + dx, y + dy
+                    if not self.grid[newx, newy] in (' ', '@'):
+                        continue  # No space in that direction
+                    dist_to_hero = math.sqrt((self.hero_x - newx) ** 2 + (self.hero_y - newy) ** 2)
+                    if dist_to_hero < best_dist_to_hero:  # Direction found that brings the monster closer to the hero
+                        best_dist_to_hero = dist_to_hero
+                        best_direction = direction
+            else:  # Baby monster
+                directions = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1)]
+                passable = (' ', '@', '+')
+                dir = 0
+                # zoek de muur
+                a = at_dir(dir)
+                while at_dir(dir) in passable:
+                    dir += 1
+                    a = at_dir(dir)
+                # ga langs de muur
+                while at_dir(dir) not in passable:
+                    dir = (dir + 1) % 8
+                    b = at_dir(dir)
+                if dir % 2 == 1:
+                    dir = (dir + 1) % 8
+                best_direction = directions[dir]
+            # Move monster
             if best_direction:
                 dx, dy = best_direction
                 newx, newy = x + dx, y + dy
-                if self.grid[newx, newy] == '@':
-                    self.die('Killed by a monster.')
+                target = self.grid[newx, newy]
+                if target == '@':
+                    baby = 'baby ' if monster_type == 'S' else ''
+                    self.die(f'Killed by a {baby}monster.')
+                elif target == '+':
+                    # Monster was captured
+                    self.monsters.remove((x, y))
+                    self.grid[x, y] = ' '  # remove the monster
+                    self.grid[newx, newy] = ' '  # remove the cage
                 else:
-                    self.grid[newx, newy] = 'M'  # Move the monster
+                    self.grid[newx, newy] = monster_type  # Move the monster
                     self.grid[x, y] = ' '
                     self.monsters[index] = (newx, newy)
                     # self.fill_queue(x, y)
@@ -176,8 +210,11 @@ class Game:
             if target == ' ':
                 self.grid[x + dx, y + dy] = self.grid[x, y]
                 self.grid[x, y] = ' '
+                self.game_queue.insert((x, y))
+                self.game_queue.insert(
+                    (x + dx, y + dy)
+                )  # Put new square in the beginning of list for further fall or flight
                 self.fill_queue(x, y)  # Stir up old square
-                self.game_queue.put((x + dx, y + dy))  # Put new square on the list for further fall or flight
                 self.speed_list += [(x + dx, y + dy)]
                 return True
             return False
@@ -230,8 +267,8 @@ class Game:
         # So always next to or one or two levels under the boulder
         # and next to or one or two levels in front of the arrow.
 
-        for dx in range(-2, 3):
-            for dy in range(-2, 3):
+        for dy in range(-2, 3):
+            for dx in [0, -1, 1, -2, 2]:  # More priority from the middele out
                 c = self.grid[x + dx, y + dy]
                 if (
                     (c == '<' and dx >= 0 and -2 < dy < 2)
@@ -239,12 +276,12 @@ class Game:
                     or (c == 'O' and dy <= 0 and -2 < dx < 2)
                     or (c == '^' and dy >= 0 and -2 < dx < 2)
                 ):
-                    self.game_queue.put((x + dx, y + dy))
+                    self.game_queue.push((x + dx, y + dy))
 
-    def update_statusbar(self):
+    def update_sidebar(self):
         text = f'Level {self.level}                 {self.stars_found}/{self.stars_total} gold found'
-        drawing.status_bar_message(self.grid, (2, 15), text)
-        drawing.show_levels(self.grid, self.level_buttons)
+        drawing.sidebar_message(self.grid, (2, 15), text)
+        drawing.show_levels(self.grid, self.level_buttons, self.level)
 
     def die(self, message):
         drawing.full_screen_message(self.grid, drawing.RED, message)
