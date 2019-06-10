@@ -11,6 +11,7 @@ GRAY = (128, 128, 128)
 DARK_GRAY = (45, 45, 45)
 YELLOW = (192, 192, 0)
 LIGHT_BLUE = (100, 140, 255)
+PINK = (255, 140, 140)
 MIDDLE_GREEN = (91, 195, 66)
 LIGHT_GREEN = (170, 230, 120)
 
@@ -80,6 +81,14 @@ def draw_money(grid, cell_dimensions):
     draw_circle(grid, cell_dimensions, (50, 60), 60, LIGHT_BLUE)  # Sack itself
     draw_line(grid, cell_dimensions, (40, 25), (60, 25), LIGHT_BLUE, 15)
     draw_text(grid, cell_dimensions, '$', (50, 60), 36, WHITE)
+
+
+def draw_balloon(grid, cell_dimensions):
+    draw_circle(grid, cell_dimensions, (50, 40), 60, PINK)  # Balloon itself
+    draw_line(grid, cell_dimensions, (40, 75), (60, 75), PINK, 15)
+    draw_line(grid, cell_dimensions, (48, 70), (53, 80), GRAY, 6)
+    draw_line(grid, cell_dimensions, (53, 80), (48, 90), GRAY, 6)
+    draw_line(grid, cell_dimensions, (48, 90), (53, 100), GRAY, 6)
 
 
 def draw_hero(grid, cell_dimensions):
@@ -163,21 +172,18 @@ def level_buttons(grid, curlevel):
     buttons = pygame.sprite.Group()
     for l in range(60):
         level = l + 1
-        color = LIGHT_GRAY if level < curlevel else GRAY
+        color = LIGHT_GRAY if level <= curlevel else GRAY
         button = LevelButton(grid, level, color)
         buttons.add(button)
     return buttons
 
 
-def show_levels(grid, buttons, level):
+def show_levels(grid, level):
+    buttons = level_buttons(grid, level)
     font = pygame.font.Font(grid.font, 12)
     blit_text(grid, 'choose', font, GRAY, (46, 10), TOP_RIGHT)
     blit_text(grid, 'a level', font, GRAY, (46, 60), TOP_RIGHT)
     for button in buttons:
         button.show()
-    # for l in range(60):
-    #     level = l + 1
-    #     x = 48 + 1.7 * (l % 30)
-    #     y = 10+(l // 30) * 50
-    #     blit_text( grid, str(level), font, GRAY, (x,y), TOP_RIGHT )
     pygame.display.flip()
+    return buttons

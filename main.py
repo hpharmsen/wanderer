@@ -15,7 +15,7 @@ import sys
 from functools import partial
 
 # pip3 install git+https://github.com/hpharmsen/gridworld
-from gridworld.grid import Grid, TOP
+from grid import Grid, TOP
 import pygame
 import drawing
 from game_logic import Game
@@ -73,6 +73,7 @@ def setup_grid():
     grid.set_drawaction('/', drawing.draw_up_line)
     grid.set_drawaction('!', drawing.draw_bomb)
     grid.set_drawaction('*', drawing.draw_money)
+    grid.set_drawaction('^', drawing.draw_balloon)
     grid.set_drawaction('@', drawing.draw_hero)
     grid.set_drawaction('M', drawing.draw_monster)
     grid.set_drawaction('S', drawing.draw_baby_monster)
@@ -92,5 +93,5 @@ if __name__ == '__main__':
     grid.set_mouse_click_action(partial(mouse_click, game=game))
     grid.set_update_sidebar_action(game.update_sidebar)
     pygame.key.set_repeat(100, 60)
-    game.start_level(0)
+    game.start_level()
     grid.run()
