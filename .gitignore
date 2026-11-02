@@ -28,3 +28,8 @@ savegame.txt
 
 # Binaries
 *.jar
+
+# Local extras
+Java version/
+levels/level0.txt
+levels/level10bak.txt
