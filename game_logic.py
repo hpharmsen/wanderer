@@ -63,7 +63,7 @@ class Game:
                     self.babymonsters += [(x, y)]
                 elif self.grid[x, y] == 'C':
                     # Time Capsule. Not implemented.
-                    self.grid.clear((x, y))
+                    self.grid[x, y] = ' '
         self.update_sidebar()
         self.game_queue.reset()
         self.active = True
@@ -80,7 +80,7 @@ class Game:
         def abs_move(x, y):
             self.game_queue.insert((x, y))  # Set previous hero position as 'dirty'
             self.fill_queue(self.hero_x, self.hero_y)
-            self.grid.clear((self.hero_x, self.hero_y))
+            self.grid[self.hero_x, self.hero_y] = ' '
             self.hero_x = x
             self.hero_y = y
             self.grid[x, y] = '@'
@@ -89,7 +89,7 @@ class Game:
             abs_move(self.hero_x + dx, self.hero_y + dy)
 
         # empty or earth -> move
-        if target in (None, ':'):
+        if target in (' ', ':'):
             rel_move(dx, dy)
 
         # money -> increase points and move
@@ -100,22 +100,22 @@ class Game:
 
         # pushing a boulder or balloon sideways
         elif target in ('O', '^') and dy == 0:
-            if dx == -1 and self.grid[self.hero_x - 2, self.hero_y] == None:
+            if dx == -1 and self.grid[self.hero_x - 2, self.hero_y] == ' ':
                 self.grid[self.hero_x - 2, self.hero_y] = target
                 self.game_queue.push((self.hero_x - 2, self.hero_y))
                 rel_move(dx, dy)
-            elif dx == 1 and self.grid[self.hero_x + 2, self.hero_y] == None:
+            elif dx == 1 and self.grid[self.hero_x + 2, self.hero_y] == ' ':
                 self.grid[self.hero_x + 2, self.hero_y] = target
                 self.game_queue.push((self.hero_x + 2, self.hero_y))
                 rel_move(dx, dy)
 
         # pushing an arrow up or down
         elif target in ('<', '>') and dx == 0:
-            if dy == -1 and self.grid[self.hero_x, self.hero_y - 2] == None:
+            if dy == -1 and self.grid[self.hero_x, self.hero_y - 2] == ' ':
                 self.grid[self.hero_x, self.hero_y - 2] = target
                 self.game_queue.push((self.hero_x, self.hero_y - 2))
                 rel_move(dx, dy)
-            elif dy == 1 and self.grid[self.hero_x, self.hero_y + 2] == None:
+            elif dy == 1 and self.grid[self.hero_x, self.hero_y + 2] == ' ':
                 self.grid[self.hero_x, self.hero_y + 2] = target
                 self.game_queue.push((self.hero_x, self.hero_y + 2))
                 rel_move(dx, dy)
@@ -153,7 +153,7 @@ class Game:
             for direction in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
                 dx, dy = direction
                 newx, newy = x + dx, y + dy
-                if not self.grid[newx, newy] in (None, '@'):
+                if not self.grid[newx, newy] in (' ', '@'):
                     continue  # No space in that direction
                 dist_to_hero = math.sqrt((self.hero_x - newx) ** 2 + (self.hero_y - newy) ** 2)
                 if dist_to_hero < best_dist_to_hero:  # Direction found that brings the monster closer to the hero
@@ -169,14 +169,14 @@ class Game:
                     self.die(f'Killed by a monster.')
                 else:
                     self.grid[newx, newy] = 'M'  # Move the monster
-                    self.grid[x, y] = None
+                    self.grid[x, y] = ' '
                     self.monsters[index] = (newx, newy)
 
         # Baby monsters
         for index, monster in enumerate(self.babymonsters):
             x, y = monster
             directions = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1)]
-            passable = (None, '@', '+', ':', 'S')
+            passable = (' ', '@', '+', ':', 'S')
             wall = self.babymonster_walldirection[index]  # Direction of the wall this monster was following
 
             if wall == -1:
@@ -212,7 +212,7 @@ class Game:
                 # baby monster was captured
                 del self.babymonsters[index]
                 del self.babymonster_walldirection[index]
-                self.grid[x, y] = None  # remove the monster
+                self.grid[x, y] = ' '  # remove the monster
                 self.grid[newx, newy] = '*'  # Replace the cage buy gold
             else:
                 self.grid.push((newx, newy), 'S')  # Move the monster
@@ -243,19 +243,19 @@ class Game:
                     return True
                 elif target == 'M':  # Kill monster
                     self.monsters.remove((x + dx, y + dy))
-                    target = None
+                    target = ' '
                 elif target == 'S':  # Kill baby monster
                     for index, monster_coo in reversed(list(enumerate(self.monsters))):
                         if monster_coo == (x + dx, y + dy):
                             del self.babymonsters[index]
                             del self.babymonster_walldirection[index]
-                    target = None
+                    target = ' '
                 elif source in ('>', '<') and target == '^':
-                    target = None  # Balloon is popped by an arrow
+                    target = ' '  # Balloon is popped by an arrow
 
-            if target == None:
+            if target == ' ':
                 self.grid[x + dx, y + dy] = self.grid[x, y]
-                self.grid.clear((x, y))
+                self.grid[x, y] = ' '
                 self.game_queue.insert((x, y))
                 self.game_queue.insert(
                     (x + dx, y + dy)
@@ -275,30 +275,30 @@ class Game:
             if symbol == 'O':
                 if try_move(x, y, 0, +1):  # down
                     break
-                if self.grid[x, y + 1] in ('O', '/') and self.grid[x - 1, y] == None and try_move(x, y, -1, +1):
+                if self.grid[x, y + 1] in ('O', '/') and self.grid[x - 1, y] == ' ' and try_move(x, y, -1, +1):
                     break  # down-left
-                if self.grid[x, y + 1] in ('O', '\\') and self.grid[x + 1, y] == None and try_move(x, y, +1, +1):
+                if self.grid[x, y + 1] in ('O', '\\') and self.grid[x + 1, y] == ' ' and try_move(x, y, +1, +1):
                     break  # down-right
             elif symbol == '<':
                 if try_move(x, y, -1, 0):  # left
                     break
-                if self.grid[x - 1, y] in ('O', '\\') and self.grid[x, y - 1] == None and try_move(x, y, -1, -1):
+                if self.grid[x - 1, y] in ('O', '\\') and self.grid[x, y - 1] == ' ' and try_move(x, y, -1, -1):
                     break  # left-up
-                if self.grid[x - 1, y] in ('O', '/') and self.grid[x, y + 1] == None and try_move(x, y, -1, +1):
+                if self.grid[x - 1, y] in ('O', '/') and self.grid[x, y + 1] == ' ' and try_move(x, y, -1, +1):
                     break  # left-down
             elif symbol == '>':
                 if try_move(x, y, +1, 0):  # right
                     break
-                if self.grid[x + 1, y] in ('O', '/') and self.grid[x, y - 1] == None and try_move(x, y, +1, -1):
+                if self.grid[x + 1, y] in ('O', '/') and self.grid[x, y - 1] == ' ' and try_move(x, y, +1, -1):
                     break  # right-up
-                if self.grid[x + 1, y] in ('O', '\\') and self.grid[x, y + 1] == None and try_move(x, y, +1, +1):
+                if self.grid[x + 1, y] in ('O', '\\') and self.grid[x, y + 1] == ' ' and try_move(x, y, +1, +1):
                     break  # right-down
             elif symbol == '^':
                 if try_move(x, y, 0, -1):  # up
                     break
-                if self.grid[x, y - 1] in ('O', '/') and self.grid[x + 1, y] == None and try_move(x, y, +1, -1):
+                if self.grid[x, y - 1] in ('O', '/') and self.grid[x + 1, y] == ' ' and try_move(x, y, +1, -1):
                     break  # up-left
-                if self.grid[x, y - 1] in ('O', '\\') and self.grid[x - 1, y] == None and try_move(x, y, -1, -1):
+                if self.grid[x, y - 1] in ('O', '\\') and self.grid[x - 1, y] == ' ' and try_move(x, y, -1, -1):
                     break  # up-right
 
         if self.monsters_can_move and not self.game_queue:  # Player has moved and all reactions are done

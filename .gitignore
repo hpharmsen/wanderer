@@ -18,3 +18,13 @@ levels/test.txt
 levels/wanderer.png
 levels/wanderer.txt
 
+
+# Runtime state
+lastlevel.txt
+savegame.txt
+
+# macOS
+.DS_Store
+
+# Binaries
+*.jar
